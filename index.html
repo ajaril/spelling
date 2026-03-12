@@ -384,9 +384,9 @@
       <div class="speed-row">
         <label class="voice-label">Speed:</label>
         <div class="speed-btns">
-          <button class="speed-btn" id="spd-slow"   onclick="setSpeed(0.65)">🐢 Slow</button>
-          <button class="speed-btn active" id="spd-normal" onclick="setSpeed(0.78)">🚶 Normal</button>
-          <button class="speed-btn" id="spd-fast"   onclick="setSpeed(1.0)">🐇 Fast</button>
+          <button class="speed-btn" id="spd-slow"   onclick="setSpeed('slow')">🐢 Slow</button>
+          <button class="speed-btn active" id="spd-normal" onclick="setSpeed('normal')">🚶 Normal</button>
+          <button class="speed-btn" id="spd-fast"   onclick="setSpeed('fast')">🐇 Fast</button>
         </div>
       </div>
     </div>
@@ -633,9 +633,11 @@
   function finishEarly() { showFinish(); }
 
   /* ── SPEECH ── */
-  let selectedVoice = null, voicesLoaded = false, speechRate = 0.78;
+  let selectedVoice = null, voicesLoaded = false, speechRate = 0.7;
   const BRITISH_MALE_PRIORITY = ['daniel','google uk english male','english united kingdom','british male','british'];
   let allVoices = [];
+  // Speed values: clearly distinct — 0.4 = very slow, 0.7 = comfortable, 1.1 = natural pace
+  const SPEEDS = { slow: 0.4, normal: 0.7, fast: 1.1 };
 
   function pickBritishVoice(voices) {
     const gb = voices.filter(v => v.lang.startsWith('en-GB'));
@@ -694,12 +696,11 @@
 
   if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
 
-  function setSpeed(rate) {
-    speechRate = rate;
+  function setSpeed(key) {
+    speechRate = SPEEDS[key];
     document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-    const map = { 0.65: 'spd-slow', 0.78: 'spd-normal', 1.0: 'spd-fast' };
-    const el = document.getElementById(map[rate]);
-    if (el) el.classList.add('active');
+    document.getElementById('spd-' + key).classList.add('active');
+    if (currentWord) speakWord();
   }
 
   function speakWord() {
