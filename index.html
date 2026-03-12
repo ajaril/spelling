@@ -317,6 +317,46 @@
   }
   .speed-btn:active { transform: translateY(2px); box-shadow: none !important; }
 
+  /* ══ IN-GAME VOICE CONTROLS ══ */
+  .ingame-controls {
+    background: white;
+    border-radius: 1.25rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ingame-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+  .ingame-lbl {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .ingame-controls select {
+    flex: 1; background: #f0f7ff; border: 2px solid #d0e8ff;
+    border-radius: 0.75rem; padding: 0.4rem 0.625rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.78rem; font-weight: 700;
+    color: var(--dark); outline: none; cursor: pointer;
+  }
+  .ingame-controls .speed-btns { flex: 1; display: flex; gap: 0.4rem; }
+  .ingame-controls .speed-btn {
+    flex: 1; padding: 0.4rem 0.25rem;
+    background: #f0f4f8; border: 2px solid #e0e8f0;
+    border-radius: 0.75rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.72rem; font-weight: 800;
+    color: #94a3b8; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .ingame-controls .speed-btn.active {
+    background: var(--yellow); border-color: var(--yellow);
+    color: var(--dark); box-shadow: 0 3px 0 #c9a200;
+  }
+  .ingame-controls .speed-btn:active { transform: translateY(2px); box-shadow: none !important; }
+
   /* ══ TOAST ══ */
   #toast {
     position: fixed; top: 1.25rem; left: 50%;
@@ -409,6 +449,22 @@
     <div class="audio-zone">
       <button class="audio-btn" id="audio-btn" onclick="speakWord()">🔊</button>
       <div class="audio-label">Tap to hear the word!</div>
+    </div>
+
+    <!-- In-game voice controls -->
+    <div class="ingame-controls">
+      <div class="ingame-row">
+        <span class="ingame-lbl">🎙️</span>
+        <select id="voice-select-game" onchange="onVoiceChangeGame()"></select>
+      </div>
+      <div class="ingame-row">
+        <span class="ingame-lbl">⚡</span>
+        <div class="speed-btns">
+          <button class="speed-btn" id="g-spd-slow"   onclick="setSpeed('slow')">🐢 Slow</button>
+          <button class="speed-btn active" id="g-spd-normal" onclick="setSpeed('normal')">🚶 Normal</button>
+          <button class="speed-btn" id="g-spd-fast"   onclick="setSpeed('fast')">🐇 Fast</button>
+        </div>
+      </div>
     </div>
 
     <div id="letters-grid"></div>
@@ -633,11 +689,11 @@
   function finishEarly() { showFinish(); }
 
   /* ── SPEECH ── */
-  let selectedVoice = null, voicesLoaded = false, speechRate = 0.7;
+  let selectedVoice = null, voicesLoaded = false, speechRate = 0.6;
   const BRITISH_MALE_PRIORITY = ['daniel','google uk english male','english united kingdom','british male','british'];
   let allVoices = [];
   // Speed values: clearly distinct — 0.4 = very slow, 0.7 = comfortable, 1.1 = natural pace
-  const SPEEDS = { slow: 0.4, normal: 0.7, fast: 1.1 };
+  const SPEEDS = { slow: 0.3, normal: 0.6, fast: 1.1 };
 
   function pickBritishVoice(voices) {
     const gb = voices.filter(v => v.lang.startsWith('en-GB'));
@@ -649,40 +705,55 @@
     return gb[0];
   }
 
-  function populateVoiceSelect(voices) {
-    const sel = document.getElementById('voice-select');
-    if (!sel) return;
-    // Show only English voices, British first
+  function buildVoiceOptions(voices) {
+    // English voices only, British first
     const gb = voices.filter(v => v.lang.startsWith('en-GB'));
-    const us = voices.filter(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-AU') || v.lang.startsWith('en'));
-    const ordered = [...new Set([...gb, ...us])];
-    sel.innerHTML = '';
-    ordered.forEach((v, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      const flag = v.lang.startsWith('en-GB') ? '🇬🇧 ' : v.lang.startsWith('en-AU') ? '🇦🇺 ' : '🇺🇸 ';
-      opt.textContent = flag + v.name;
-      opt.dataset.idx = voices.indexOf(v);
-      sel.appendChild(opt);
-    });
-    // Pre-select best British male voice
+    const rest = voices.filter(v => v.lang.startsWith('en') && !v.lang.startsWith('en-GB'));
+    return [...new Set([...gb, ...rest])];
+  }
+
+  function populateVoiceSelect(voices) {
+    const ordered = buildVoiceOptions(voices);
     const best = pickBritishVoice(voices);
-    if (best) {
-      const bestIdx = voices.indexOf(best);
+    const bestIdx = best ? voices.indexOf(best) : -1;
+
+    ['voice-select', 'voice-select-game'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = '';
+      ordered.forEach(v => {
+        const opt = document.createElement('option');
+        const flag = v.lang.startsWith('en-GB') ? '🇬🇧 ' : v.lang.startsWith('en-AU') ? '🇦🇺 ' : '🇺🇸 ';
+        opt.textContent = flag + v.name;
+        opt.dataset.idx = voices.indexOf(v);
+        sel.appendChild(opt);
+      });
+      // Pre-select British male
       for (const opt of sel.options) {
         if (parseInt(opt.dataset.idx) === bestIdx) { opt.selected = true; break; }
       }
-    }
+    });
     selectedVoice = best;
   }
 
-  function onVoiceChange() {
-    const sel = document.getElementById('voice-select');
+  function applyVoiceFromSelect(selId) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
     const idx = parseInt(sel.selectedOptions[0]?.dataset.idx ?? -1);
     selectedVoice = idx >= 0 ? allVoices[idx] : null;
-    // Preview the new voice with a short word
+    // Sync the other select
+    const otherId = selId === 'voice-select' ? 'voice-select-game' : 'voice-select';
+    const other = document.getElementById(otherId);
+    if (other) {
+      for (const opt of other.options) {
+        if (opt.dataset.idx === sel.selectedOptions[0]?.dataset.idx) { opt.selected = true; break; }
+      }
+    }
     if (currentWord) speakWord();
   }
+
+  function onVoiceChange()     { applyVoiceFromSelect('voice-select'); }
+  function onVoiceChangeGame() { applyVoiceFromSelect('voice-select-game'); }
 
   function loadVoices() {
     const voices = window.speechSynthesis.getVoices();
@@ -698,8 +769,13 @@
 
   function setSpeed(key) {
     speechRate = SPEEDS[key];
-    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('spd-' + key).classList.add('active');
+    // Sync both setup and in-game speed buttons
+    ['spd-slow','spd-normal','spd-fast','g-spd-slow','g-spd-normal','g-spd-fast'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+    const targets = ['spd-' + key, 'g-spd-' + key];
+    targets.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('active'); });
     if (currentWord) speakWord();
   }
 
