@@ -909,7 +909,7 @@
     if (e.key === 'Backspace' && typed.length > 0 && !isBusy) { removeLetter(); e.target.value = typed; }
   });
   document.getElementById('game-screen').addEventListener('click', e => {
-    if (!e.target.closest('button')) focusInput();
+    if (!e.target.closest('button') && !e.target.closest('select')) focusInput();
   });
   function focusInput() { const i = document.getElementById('hidden-input'); i.value = typed; i.focus(); }
 
