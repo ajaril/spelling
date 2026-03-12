@@ -282,6 +282,41 @@
     color: #94a3b8; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
   }
 
+  /* ══ VOICE SETTINGS ══ */
+  .voice-row, .speed-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .speed-row { margin-bottom: 0; }
+  .voice-label {
+    font-size: 0.72rem; font-weight: 800; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    white-space: nowrap; min-width: 80px;
+  }
+  select#voice-select {
+    flex: 1; min-height: unset; height: auto;
+    background: #f0f7ff; border: 2px solid #d0e8ff;
+    border-radius: 0.75rem; padding: 0.5rem 0.75rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 700;
+    color: var(--dark); outline: none; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select#voice-select:focus { border-color: var(--sky); }
+
+  .speed-btns { display: flex; gap: 0.4rem; flex: 1; }
+  .speed-btn {
+    flex: 1; padding: 0.45rem 0.25rem;
+    background: #f0f4f8; border: 2px solid #e0e8f0;
+    border-radius: 0.75rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.7rem; font-weight: 800;
+    color: #94a3b8; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .speed-btn.active {
+    background: var(--yellow); border-color: var(--yellow);
+    color: var(--dark); box-shadow: 0 3px 0 #c9a200;
+  }
+  .speed-btn:active { transform: translateY(2px); box-shadow: none !important; }
+
   /* ══ TOAST ══ */
   #toast {
     position: fixed; top: 1.25rem; left: 50%;
@@ -334,6 +369,24 @@
         <div class="order-toggle">
           <button id="order-original" class="active" onclick="setOrder('original')">In order</button>
           <button id="order-random" onclick="setOrder('random')">Shuffle 🔀</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kid-card" style="margin-bottom:0.875rem;">
+      <div class="card-title">🎙️ Voice settings</div>
+      <div class="voice-row">
+        <label class="voice-label">Choose a voice:</label>
+        <select id="voice-select" onchange="onVoiceChange()">
+          <option value="">Loading voices…</option>
+        </select>
+      </div>
+      <div class="speed-row">
+        <label class="voice-label">Speed:</label>
+        <div class="speed-btns">
+          <button class="speed-btn" id="spd-slow"   onclick="setSpeed(0.65)">🐢 Slow</button>
+          <button class="speed-btn active" id="spd-normal" onclick="setSpeed(0.78)">🚶 Normal</button>
+          <button class="speed-btn" id="spd-fast"   onclick="setSpeed(1.0)">🐇 Fast</button>
         </div>
       </div>
     </div>
@@ -580,8 +633,9 @@
   function finishEarly() { showFinish(); }
 
   /* ── SPEECH ── */
-  let selectedVoice = null, voicesLoaded = false;
+  let selectedVoice = null, voicesLoaded = false, speechRate = 0.78;
   const BRITISH_MALE_PRIORITY = ['daniel','google uk english male','english united kingdom','british male','british'];
+  let allVoices = [];
 
   function pickBritishVoice(voices) {
     const gb = voices.filter(v => v.lang.startsWith('en-GB'));
@@ -593,19 +647,69 @@
     return gb[0];
   }
 
+  function populateVoiceSelect(voices) {
+    const sel = document.getElementById('voice-select');
+    if (!sel) return;
+    // Show only English voices, British first
+    const gb = voices.filter(v => v.lang.startsWith('en-GB'));
+    const us = voices.filter(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-AU') || v.lang.startsWith('en'));
+    const ordered = [...new Set([...gb, ...us])];
+    sel.innerHTML = '';
+    ordered.forEach((v, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      const flag = v.lang.startsWith('en-GB') ? '🇬🇧 ' : v.lang.startsWith('en-AU') ? '🇦🇺 ' : '🇺🇸 ';
+      opt.textContent = flag + v.name;
+      opt.dataset.idx = voices.indexOf(v);
+      sel.appendChild(opt);
+    });
+    // Pre-select best British male voice
+    const best = pickBritishVoice(voices);
+    if (best) {
+      const bestIdx = voices.indexOf(best);
+      for (const opt of sel.options) {
+        if (parseInt(opt.dataset.idx) === bestIdx) { opt.selected = true; break; }
+      }
+    }
+    selectedVoice = best;
+  }
+
+  function onVoiceChange() {
+    const sel = document.getElementById('voice-select');
+    const idx = parseInt(sel.selectedOptions[0]?.dataset.idx ?? -1);
+    selectedVoice = idx >= 0 ? allVoices[idx] : null;
+    // Preview the new voice with a short word
+    if (currentWord) speakWord();
+  }
+
   function loadVoices() {
     const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) { selectedVoice = pickBritishVoice(voices); voicesLoaded = true; }
+    if (voices.length > 0) {
+      allVoices = voices;
+      selectedVoice = pickBritishVoice(voices);
+      voicesLoaded = true;
+      populateVoiceSelect(voices);
+    }
   }
 
   if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+
+  function setSpeed(rate) {
+    speechRate = rate;
+    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+    const map = { 0.65: 'spd-slow', 0.78: 'spd-normal', 1.0: 'spd-fast' };
+    const el = document.getElementById(map[rate]);
+    if (el) el.classList.add('active');
+  }
 
   function speakWord() {
     if (!('speechSynthesis' in window)) { toast('Audio not supported 😢', 'error'); return; }
     if (!voicesLoaded) loadVoices();
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(currentWord.toLowerCase());
-    utt.lang = 'en-GB'; utt.rate = 0.82; utt.pitch = 0.9;
+    utt.lang = selectedVoice ? selectedVoice.lang : 'en-GB';
+    utt.rate = speechRate;
+    utt.pitch = 0.88;
     if (selectedVoice) utt.voice = selectedVoice;
     const btn = document.getElementById('audio-btn');
     utt.onstart = () => btn.classList.add('playing');
