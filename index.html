@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐝 Spelling Bee!</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky:    #4fc3f7;
+    --yellow: #ffd93d;
+    --green:  #6bcb77;
+    --pink:   #ff6b9d;
+    --purple: #a78bfa;
+    --orange: #ff9f43;
+    --red:    #ff6b6b;
+    --white:  #ffffff;
+    --dark:   #2d2d44;
+    --bg:     #e8f4fd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.75rem;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.25;
+  }
+  body::before {
+    width: 320px; height: 320px;
+    background: var(--yellow);
+    top: -80px; right: -80px;
+    animation: drift1 8s ease-in-out infinite;
+  }
+  body::after {
+    width: 240px; height: 240px;
+    background: var(--sky);
+    bottom: -60px; left: -60px;
+    animation: drift2 10s ease-in-out infinite;
+  }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-20px,20px) scale(1.05)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(15px,-15px) scale(1.08)} }
+
+  #app { position: relative; z-index: 1; width: 100%; max-width: 460px; margin: 0 auto; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ══ SETUP ══ */
+  .setup-header { text-align: center; padding: 1.5rem 0 1.25rem; }
+
+  .bee-mascot {
+    font-size: 5rem; display: block; line-height: 1; margin-bottom: 0.5rem;
+    animation: wiggle 2s ease-in-out infinite;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
+  }
+  @keyframes wiggle {
+    0%,100%{ transform: rotate(-6deg) scale(1); }
+    25%{ transform: rotate(6deg) scale(1.05); }
+    50%{ transform: rotate(-4deg) scale(1); }
+    75%{ transform: rotate(5deg) scale(1.03); }
+  }
+
+  .title-main {
+    font-size: clamp(2.4rem, 10vw, 3.2rem);
+    font-weight: 900; color: var(--dark);
+    letter-spacing: -0.02em; display: block; line-height: 1;
+  }
+  .t-spell { color: var(--orange); }
+  .t-ing   { color: var(--pink); }
+  .t-bee   { color: var(--yellow); -webkit-text-stroke: 2px var(--dark); }
+  .title-sub { font-size: 0.9rem; font-weight: 700; color: var(--sky); letter-spacing: 0.04em; margin-top: 0.25rem; }
+  .stars-deco { display: flex; justify-content: center; gap: 0.4rem; margin: 0.5rem 0 1.25rem; font-size: 1.1rem; }
+
+  .kid-card {
+    background: white; border-radius: 1.75rem; padding: 1.25rem 1.25rem 1.5rem;
+    margin-bottom: 0.875rem;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+    border: 2.5px solid rgba(0,0,0,0.05);
+  }
+  .card-title {
+    font-size: 0.75rem; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--purple); margin-bottom: 0.75rem;
+  }
+
+  textarea {
+    width: 100%; min-height: 130px;
+    background: #f7f9fc; border: 2.5px solid #e0e8f0; border-radius: 1rem;
+    padding: 0.875rem 1rem; color: var(--dark);
+    font-family: 'Nunito', sans-serif; font-size: 0.95rem; font-weight: 700;
+    line-height: 1.6; resize: none; outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--sky); }
+  textarea::placeholder { color: #b0c4d8; font-weight: 600; }
+
+  .options-row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.875rem; gap: 0.5rem; }
+
+  .word-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: #f0f7ff; border: 2px solid #d0e8ff;
+    border-radius: 100px; padding: 0.35rem 0.875rem;
+    font-size: 0.75rem; font-weight: 800; color: var(--sky);
+  }
+
+  .order-toggle { display: flex; background: #f0f4f8; border-radius: 100px; padding: 3px; gap: 2px; }
+  .order-toggle button {
+    padding: 0.35rem 0.875rem; border: none; border-radius: 100px;
+    font-family: 'Nunito', sans-serif; font-size: 0.7rem; font-weight: 800;
+    cursor: pointer; color: #94a3b8; background: transparent; transition: all 0.2s;
+  }
+  .order-toggle button.active { background: var(--yellow); color: var(--dark); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+
+  .btn-start {
+    width: 100%; padding: 1.1rem;
+    background: linear-gradient(135deg, var(--orange), var(--pink));
+    color: white; border: none; border-radius: 1.25rem;
+    font-family: 'Nunito', sans-serif; font-size: 1.15rem; font-weight: 900;
+    letter-spacing: 0.04em; cursor: pointer;
+    box-shadow: 0 5px 0 #c73d6b, 0 8px 20px rgba(255,107,157,0.35);
+    transition: all 0.12s;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  }
+  .btn-start:active { transform: translateY(4px); box-shadow: 0 1px 0 #c73d6b; }
+
+  /* ══ GAME ══ */
+  .game-topbar { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0 0.75rem; }
+
+  .progress-label {
+    background: white; border-radius: 100px; padding: 0.4rem 0.875rem;
+    font-size: 0.8rem; font-weight: 800; color: var(--dark);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .progress-label .num { color: var(--orange); }
+
+  .topbar-btns { display: flex; gap: 0.5rem; }
+  .btn-small {
+    padding: 0.4rem 0.875rem; border: none; border-radius: 100px;
+    font-family: 'Nunito', sans-serif; font-size: 0.72rem; font-weight: 800;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-small.finish { background: var(--yellow); color: var(--dark); box-shadow: 0 2px 0 #c9a200; }
+  .btn-small.exit   { background: #fee2e2; color: var(--red); box-shadow: 0 2px 0 #fca5a5; }
+  .btn-small:active { transform: translateY(2px); box-shadow: none !important; }
+
+  .stars-bar {
+    display: flex; gap: 4px; align-items: center; justify-content: center;
+    margin-bottom: 1rem; flex-wrap: wrap; min-height: 24px;
+  }
+  .star-pip { font-size: 1.1rem; transition: all 0.3s; filter: grayscale(1) opacity(0.3); line-height: 1; }
+  .star-pip.done { filter: grayscale(0) opacity(1); animation: starPop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes starPop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+
+  .audio-zone { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+
+  .audio-btn {
+    width: 90px; height: 90px;
+    background: linear-gradient(135deg, var(--yellow), var(--orange));
+    border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #c97000, 0 10px 30px rgba(255,157,67,0.4);
+    transition: all 0.12s; font-size: 2.4rem; line-height: 1;
+  }
+  .audio-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 #c97000; }
+  .audio-btn.playing { animation: audioPulse 0.6s ease-in-out infinite alternate; }
+  @keyframes audioPulse { from{transform:scale(1)} to{transform:scale(1.08)} }
+
+  .audio-label { font-size: 0.72rem; font-weight: 800; color: var(--sky); letter-spacing: 0.05em; text-transform: uppercase; }
+
+  #letters-grid {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    justify-content: center; margin-bottom: 1.5rem; min-height: 70px;
+  }
+
+  .letter-cell {
+    width: 54px; height: 62px; border-radius: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: 900; color: var(--dark);
+    transition: all 0.15s;
+  }
+  .letter-cell.empty  { background: white; border: 3px dashed #c7dff0; color: #c7dff0; }
+  .letter-cell.filled { background: var(--sky); border: 3px solid var(--sky); color: white; box-shadow: 0 4px 0 #2899c4; transform: scale(1.05); }
+  .letter-cell.correct { background: var(--green); border: 3px solid var(--green); color: white; box-shadow: 0 4px 0 #48a855; }
+  .letter-cell.wrong   { background: var(--red); border: 3px solid var(--red); color: white; box-shadow: 0 4px 0 #d94444; }
+  .letter-cell.hint-cell   { background: var(--purple); border: 3px solid var(--purple); color: white; box-shadow: 0 4px 0 #7c5de0; }
+  .letter-cell.solved-cell { background: var(--orange); border: 3px solid var(--orange); color: white; box-shadow: 0 4px 0 #d97706; }
+
+  .letter-cell.pop   { animation: cellPop 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes cellPop { 0%{transform:scale(0.7)} 100%{transform:scale(1.05)} }
+  .letter-cell.shake { animation: cellShake 0.45s; }
+  @keyframes cellShake {
+    0%,100%{transform:translateX(0) rotate(0)}
+    20%{transform:translateX(-7px) rotate(-3deg)}
+    40%{transform:translateX(7px) rotate(3deg)}
+    60%{transform:translateX(-5px) rotate(-2deg)}
+    80%{transform:translateX(5px) rotate(2deg)}
+  }
+
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.875rem; }
+
+  .btn-hint {
+    padding: 1rem 0.5rem; background: white; border: 3px solid var(--purple);
+    border-radius: 1.25rem; font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem; font-weight: 900; color: var(--purple);
+    cursor: pointer; box-shadow: 0 4px 0 #7c5de0; transition: all 0.12s;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  }
+  .btn-hint:active { transform: translateY(3px); box-shadow: 0 1px 0 #7c5de0; }
+
+  .btn-solve {
+    padding: 1rem 0.5rem; background: white; border: 3px solid var(--red);
+    border-radius: 1.25rem; font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem; font-weight: 900; color: var(--red);
+    cursor: pointer; box-shadow: 0 4px 0 #c94444; transition: all 0.12s;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  }
+  .btn-solve:active { transform: translateY(3px); box-shadow: 0 1px 0 #c94444; }
+
+  #hidden-input { position: absolute; opacity: 0; pointer-events: none; top: -200px; left: 0; width: 1px; height: 1px; }
+
+  /* ══ FINISH ══ */
+  .finish-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
+  .finish-mascot { font-size: 4.5rem; display: block; animation: bounce 1s ease-in-out infinite; margin-bottom: 0.5rem; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+  .finish-title { font-size: 2rem; font-weight: 900; color: var(--dark); letter-spacing: -0.02em; line-height: 1.1; }
+  .finish-stars { font-size: 1.5rem; letter-spacing: 0.1em; margin: 0.5rem 0 1.25rem; }
+
+  .score-banner {
+    background: linear-gradient(135deg, var(--yellow), var(--orange));
+    border-radius: 1.5rem; padding: 1.1rem 1.5rem; margin-bottom: 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 5px 0 #c97000, 0 8px 20px rgba(255,157,67,0.3);
+  }
+  .score-grade { font-size: 3.5rem; font-weight: 900; color: white; line-height: 1; text-shadow: 0 3px 0 rgba(0,0,0,0.15); }
+  .score-msg { font-size: 1rem; font-weight: 800; color: white; text-align: right; max-width: 180px; line-height: 1.3; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.625rem; margin-bottom: 1.25rem; }
+  .stat-box { background: white; border-radius: 1.25rem; padding: 1rem 0.5rem; text-align: center; box-shadow: 0 3px 0 rgba(0,0,0,0.07); }
+  .stat-icon { font-size: 1.6rem; display: block; margin-bottom: 0.3rem; }
+  .stat-num { font-size: 2.2rem; font-weight: 900; line-height: 1; margin-bottom: 0.2rem; }
+  .stat-lbl { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; }
+  .stat-box.s-green .stat-num  { color: var(--green); }
+  .stat-box.s-purple .stat-num { color: var(--purple); }
+  .stat-box.s-red .stat-num    { color: var(--red); }
+
+  .retry-label { font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; text-align: center; margin-bottom: 0.625rem; }
+  .retry-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; margin-bottom: 0.625rem; }
+
+  .btn-retry-same {
+    padding: 1rem; background: white; border: 3px solid var(--sky); border-radius: 1.25rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.875rem; font-weight: 900; color: var(--sky);
+    cursor: pointer; box-shadow: 0 4px 0 #2899c4; transition: all 0.12s;
+  }
+  .btn-retry-same:active { transform: translateY(3px); box-shadow: 0 1px 0 #2899c4; }
+
+  .btn-retry-shuffle {
+    padding: 1rem; background: linear-gradient(135deg, var(--sky), var(--purple));
+    border: none; border-radius: 1.25rem;
+    font-family: 'Nunito', sans-serif; font-size: 0.875rem; font-weight: 900; color: white;
+    cursor: pointer; box-shadow: 0 4px 0 #5b21b6; transition: all 0.12s;
+  }
+  .btn-retry-shuffle:active { transform: translateY(3px); box-shadow: 0 1px 0 #5b21b6; }
+
+  .btn-newlist {
+    width: 100%; padding: 0.875rem; background: transparent; border: none;
+    font-family: 'Nunito', sans-serif; font-size: 0.8rem; font-weight: 800;
+    color: #94a3b8; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  /* ══ TOAST ══ */
+  #toast {
+    position: fixed; top: 1.25rem; left: 50%;
+    transform: translateX(-50%) translateY(-20px) scale(0.9);
+    border-radius: 100px; padding: 0.75rem 1.75rem;
+    font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 900;
+    white-space: nowrap; opacity: 0; pointer-events: none; z-index: 1000;
+    transition: opacity 0.2s, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  #toast.success { background: var(--green); color: white; }
+  #toast.warning { background: var(--orange); color: white; }
+  #toast.error   { background: var(--red); color: white; }
+
+  /* ══ CONFETTI ══ */
+  #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 500; opacity: 0; transition: opacity 0.3s; }
+  #confetti-canvas.active { opacity: 1; }
+
+  @media (max-width: 360px) {
+    .letter-cell { width: 46px; height: 54px; font-size: 1.3rem; }
+    #letters-grid { gap: 0.375rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div id="app">
+
+  <!-- ══ SETUP ══ -->
+  <div id="setup-screen" class="screen active">
+    <div class="setup-header">
+      <span class="bee-mascot">🐝</span>
+      <span class="title-main">
+        <span class="t-spell">SPELL</span><span class="t-ing">ING</span> <span class="t-bee">BEE</span>
+      </span>
+      <div class="title-sub">✨ Let's practice spelling! ✨</div>
+      <div class="stars-deco">🌟 ⭐ 🌟 ⭐ 🌟</div>
+    </div>
+
+    <div class="kid-card">
+      <div class="card-title">📝 Type your word list</div>
+      <textarea id="word-input"
+        placeholder="Type your words here!&#10;&#10;Examples:&#10;elephant, castle, magic&#10;&#10;or one word on each line 👇&#10;elephant&#10;castle&#10;magic"
+      ></textarea>
+      <div class="options-row">
+        <div class="word-badge">🐝 <span id="word-count-display">0 words</span></div>
+        <div class="order-toggle">
+          <button id="order-original" class="active" onclick="setOrder('original')">In order</button>
+          <button id="order-random" onclick="setOrder('random')">Shuffle 🔀</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startGame()">Let's Go! 🚀</button>
+  </div>
+
+  <!-- ══ GAME ══ -->
+  <div id="game-screen" class="screen">
+    <div class="game-topbar">
+      <div class="progress-label">Word <span class="num" id="current-num">1</span> / <span id="total-num">10</span></div>
+      <div class="topbar-btns">
+        <button class="btn-small finish" onclick="finishEarly()">🏁 Finish</button>
+        <button class="btn-small exit" onclick="goToSetup()">✖ Exit</button>
+      </div>
+    </div>
+
+    <div class="stars-bar" id="stars-bar"></div>
+
+    <div class="audio-zone">
+      <button class="audio-btn" id="audio-btn" onclick="speakWord()">🔊</button>
+      <div class="audio-label">Tap to hear the word!</div>
+    </div>
+
+    <div id="letters-grid"></div>
+
+    <div class="action-row">
+      <button class="btn-hint" onclick="giveHint()">💡 Give me a hint!</button>
+      <button class="btn-solve" onclick="solveWord()">🆘 Show me!</button>
+    </div>
+
+    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+  </div>
+
+  <!-- ══ FINISH ══ -->
+  <div id="finish-screen" class="screen">
+    <div class="finish-wrap">
+      <span class="finish-mascot" id="trophy-emoji">🏆</span>
+      <div class="finish-title" id="finish-title">GREAT JOB!</div>
+      <div class="finish-stars" id="finish-stars">⭐⭐⭐</div>
+    </div>
+
+    <div class="score-banner">
+      <div class="score-grade" id="grade-value">A+</div>
+      <div class="score-msg" id="grade-message">Outstanding!</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box s-green">
+        <span class="stat-icon">⭐</span>
+        <div class="stat-num" id="stat-perfect">0</div>
+        <div class="stat-lbl">Perfect!</div>
+      </div>
+      <div class="stat-box s-purple">
+        <span class="stat-icon">💡</span>
+        <div class="stat-num" id="stat-hints">0</div>
+        <div class="stat-lbl">With hints</div>
+      </div>
+      <div class="stat-box s-red">
+        <span class="stat-icon">🆘</span>
+        <div class="stat-num" id="stat-solved">0</div>
+        <div class="stat-lbl">Solved</div>
+      </div>
+    </div>
+
+    <p class="retry-label">Want to try again?</p>
+    <div class="retry-btns">
+      <button class="btn-retry-same" onclick="retryWords(false)">Same order 📋</button>
+      <button class="btn-retry-shuffle" onclick="retryWords(true)">Shuffle! 🔀</button>
+    </div>
+    <button class="btn-newlist" onclick="goToSetup()">← New word list</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let words = [], originalWords = [];
+  let currentIndex = 0, currentWord = '', typed = '';
+  let usedHelp = false, isBusy = false, orderMode = 'original';
+  let stats = { perfect: 0, hints: 0, solved: 0 };
+
+  document.getElementById('word-input').addEventListener('input', updateWordCount);
+
+  function updateWordCount() {
+    const list = parseWords(document.getElementById('word-input').value);
+    document.getElementById('word-count-display').textContent = `${list.length} word${list.length !== 1 ? 's' : ''}`;
+  }
+
+  function parseWords(raw) {
+    return raw.split(/[,\n\r]+|\s{2,}/)
+      .map(w => w.trim().toUpperCase())
+      .filter(w => w.length > 1 && /^[A-Z\-']+$/.test(w));
+  }
+
+  function setOrder(mode) {
+    orderMode = mode;
+    document.getElementById('order-original').classList.toggle('active', mode === 'original');
+    document.getElementById('order-random').classList.toggle('active', mode === 'random');
+  }
+
+  function shuffleArray(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    const parsed = parseWords(document.getElementById('word-input').value);
+    if (parsed.length === 0) { toast('Add some words first! 📝', 'error'); return; }
+    originalWords = [...parsed];
+    words = orderMode === 'random' ? shuffleArray(parsed) : [...parsed];
+    stats = { perfect: 0, hints: 0, solved: 0 };
+    currentIndex = 0;
+    buildStarsBar();
+    setScreen('game-screen');
+    loadWord();
+  }
+
+  function buildStarsBar() {
+    const bar = document.getElementById('stars-bar');
+    bar.innerHTML = '';
+    const max = Math.min(words.length, 20);
+    for (let i = 0; i < max; i++) {
+      const pip = document.createElement('span');
+      pip.className = 'star-pip';
+      pip.textContent = '⭐';
+      pip.id = `pip-${i}`;
+      bar.appendChild(pip);
+    }
+  }
+
+  function markStarDone(index) {
+    const pip = document.getElementById(`pip-${index}`);
+    if (pip) pip.classList.add('done');
+  }
+
+  function loadWord() {
+    currentWord = words[currentIndex];
+    typed = ''; usedHelp = false; isBusy = false;
+
+    document.getElementById('current-num').textContent = currentIndex + 1;
+    document.getElementById('total-num').textContent = words.length;
+
+    const grid = document.getElementById('letters-grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < currentWord.length; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'letter-cell empty';
+      cell.id = `cell-${i}`;
+      grid.appendChild(cell);
+    }
+
+    const len = currentWord.length;
+    const cellW = len > 12 ? 40 : len > 9 ? 46 : len > 7 ? 50 : 54;
+    const cellH = Math.round(cellW * 1.15);
+    const cellF = Math.round(cellW * 0.6);
+    document.querySelectorAll('.letter-cell').forEach(c => {
+      c.style.width = cellW + 'px';
+      c.style.height = cellH + 'px';
+      c.style.fontSize = cellF + 'px';
+    });
+
+    focusInput();
+    setTimeout(() => speakWord(), 300);
+  }
+
+  function addLetter(ch) {
+    if (isBusy || typed.length >= currentWord.length) return;
+    const idx = typed.length;
+    typed += ch;
+    const cell = document.getElementById(`cell-${idx}`);
+    cell.textContent = ch;
+    cell.className = 'letter-cell filled pop';
+    setTimeout(() => cell.classList.remove('pop'), 300);
+    if (typed.length === currentWord.length) checkAnswer();
+  }
+
+  function removeLetter() {
+    if (isBusy || typed.length === 0) return;
+    const idx = typed.length - 1;
+    typed = typed.slice(0, -1);
+    const cell = document.getElementById(`cell-${idx}`);
+    cell.textContent = '';
+    cell.className = 'letter-cell empty';
+  }
+
+  function checkAnswer() {
+    isBusy = true;
+    if (typed === currentWord) {
+      document.querySelectorAll('.letter-cell').forEach(c => { c.className = 'letter-cell correct'; });
+      markStarDone(currentIndex);
+      if (!usedHelp) { stats.perfect++; toast('⭐ PERFECT! Amazing!', 'success'); playBeep('success'); }
+      else { stats.hints++; toast('✅ Correct! Well done!', 'success'); playBeep('partial'); }
+      setTimeout(nextWord, 1400);
+    } else {
+      document.querySelectorAll('.letter-cell').forEach(c => c.classList.add('shake'));
+      playBeep('fail');
+      toast('Oops! Try again! 💪', 'warning');
+      setTimeout(() => {
+        typed = ''; document.getElementById('hidden-input').value = '';
+        document.querySelectorAll('.letter-cell').forEach(c => { c.textContent = ''; c.className = 'letter-cell empty'; });
+        isBusy = false; focusInput();
+      }, 700);
+    }
+  }
+
+  function giveHint() {
+    if (isBusy) return;
+    usedHelp = true;
+    const idx = typed.length;
+    const ch = currentWord[idx];
+    typed += ch;
+    const cell = document.getElementById(`cell-${idx}`);
+    cell.textContent = ch;
+    cell.className = 'letter-cell hint-cell pop';
+    setTimeout(() => cell.classList.remove('pop'), 300);
+    if (typed.length === currentWord.length) checkAnswer();
+  }
+
+  function solveWord() {
+    if (isBusy) return;
+    isBusy = true; stats.solved++;
+    typed = currentWord;
+    for (let i = 0; i < currentWord.length; i++) {
+      const cell = document.getElementById(`cell-${i}`);
+      cell.textContent = currentWord[i];
+      cell.className = 'letter-cell solved-cell';
+    }
+    playBeep('fail');
+    toast('Here it is! 👀', 'error');
+    setTimeout(nextWord, 1800);
+  }
+
+  function nextWord() {
+    currentIndex++;
+    if (currentIndex < words.length) loadWord(); else showFinish();
+  }
+
+  function finishEarly() { showFinish(); }
+
+  /* ── SPEECH ── */
+  let selectedVoice = null, voicesLoaded = false;
+  const BRITISH_MALE_PRIORITY = ['daniel','google uk english male','english united kingdom','british male','british'];
+
+  function pickBritishVoice(voices) {
+    const gb = voices.filter(v => v.lang.startsWith('en-GB'));
+    if (gb.length === 0) return voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
+    for (const kw of BRITISH_MALE_PRIORITY) {
+      const m = gb.find(v => v.name.toLowerCase().includes(kw));
+      if (m) return m;
+    }
+    return gb[0];
+  }
+
+  function loadVoices() {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) { selectedVoice = pickBritishVoice(voices); voicesLoaded = true; }
+  }
+
+  if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = loadVoices; loadVoices(); }
+
+  function speakWord() {
+    if (!('speechSynthesis' in window)) { toast('Audio not supported 😢', 'error'); return; }
+    if (!voicesLoaded) loadVoices();
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(currentWord.toLowerCase());
+    utt.lang = 'en-GB'; utt.rate = 0.82; utt.pitch = 0.9;
+    if (selectedVoice) utt.voice = selectedVoice;
+    const btn = document.getElementById('audio-btn');
+    utt.onstart = () => btn.classList.add('playing');
+    utt.onend = () => btn.classList.remove('playing');
+    utt.onerror = () => btn.classList.remove('playing');
+    window.speechSynthesis.speak(utt);
+  }
+
+  /* ── BEEPS ── */
+  let audioCtx;
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function playBeep(type) {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, now); osc.frequency.setValueAtTime(880, now+0.1); osc.frequency.setValueAtTime(1100, now+0.2);
+        gain.gain.setValueAtTime(0.18, now); gain.gain.linearRampToValueAtTime(0, now+0.5);
+        osc.start(now); osc.stop(now+0.5);
+      } else if (type === 'partial') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(550, now); osc.frequency.setValueAtTime(770, now+0.12);
+        gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now+0.35);
+        osc.start(now); osc.stop(now+0.35);
+      } else {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(100, now+0.35);
+        gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now+0.45);
+        osc.start(now); osc.stop(now+0.45);
+      }
+    } catch(e) {}
+  }
+
+  /* ── CONFETTI ── */
+  let confettiAnim;
+  function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    canvas.classList.add('active');
+    const ctx = canvas.getContext('2d');
+    const colors = ['#ffd93d','#ff6b9d','#6bcb77','#4fc3f7','#a78bfa','#ff9f43'];
+    const pieces = Array.from({length: 90}, () => ({
+      x: Math.random() * canvas.width, y: -10 - Math.random() * 100,
+      r: 5 + Math.random() * 8,
+      c: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 3, vy: 3 + Math.random() * 4,
+      spin: (Math.random() - 0.5) * 0.2, angle: Math.random() * Math.PI * 2,
+      shape: Math.random() > 0.5 ? 'rect' : 'circle'
+    }));
+    let frames = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach(p => {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle); ctx.fillStyle = p.c;
+        if (p.shape === 'rect') ctx.fillRect(-p.r, -p.r/2, p.r*2, p.r);
+        else { ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill(); }
+        ctx.restore();
+        p.x += p.vx; p.y += p.vy; p.angle += p.spin;
+        if (p.y > canvas.height + 20) p.y = -10;
+      });
+      frames++;
+      if (frames < 150) confettiAnim = requestAnimationFrame(draw);
+      else { canvas.classList.remove('active'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+    }
+    if (confettiAnim) cancelAnimationFrame(confettiAnim);
+    draw();
+  }
+
+  /* ── FINISH ── */
+  function showFinish() {
+    const total = words.length;
+    const score = Math.round(((stats.perfect + stats.hints * 0.5) / total) * 100);
+    document.getElementById('stat-perfect').textContent = stats.perfect;
+    document.getElementById('stat-hints').textContent = stats.hints;
+    document.getElementById('stat-solved').textContent = stats.solved;
+
+    let grade, msg, emoji, stars, title;
+    if (score >= 90)      { grade='A+'; msg='Outstanding! You are a spelling superstar! 🌟'; emoji='🏆'; stars='⭐⭐⭐⭐⭐'; title='SUPERSTAR!'; }
+    else if (score >= 75) { grade='A';  msg='Excellent work! Keep it up!';  emoji='🎉'; stars='⭐⭐⭐⭐'; title='GREAT JOB!'; }
+    else if (score >= 55) { grade='B';  msg='Good job! A little more practice!'; emoji='👍'; stars='⭐⭐⭐'; title='WELL DONE!'; }
+    else if (score >= 35) { grade='C';  msg='Keep practicing, you can do it!'; emoji='📚'; stars='⭐⭐'; title='KEEP GOING!'; }
+    else                  { grade='D';  msg="Don't give up! Practice makes perfect!"; emoji='💪'; stars='⭐'; title='TRY AGAIN!'; }
+
+    document.getElementById('grade-value').textContent = grade;
+    document.getElementById('grade-message').textContent = msg;
+    document.getElementById('trophy-emoji').textContent = emoji;
+    document.getElementById('finish-title').textContent = title;
+    document.getElementById('finish-stars').textContent = stars;
+
+    setScreen('finish-screen');
+    if (score >= 55) setTimeout(launchConfetti, 400);
+  }
+
+  function retryWords(shuffle) {
+    stats = { perfect: 0, hints: 0, solved: 0 };
+    currentIndex = 0;
+    words = shuffle ? shuffleArray(originalWords) : [...originalWords];
+    buildStarsBar();
+    setScreen('game-screen');
+    loadWord();
+  }
+
+  function goToSetup() { window.speechSynthesis?.cancel(); setScreen('setup-screen'); }
+
+  /* ── INPUT ── */
+  const hiddenInput = document.getElementById('hidden-input');
+  hiddenInput.addEventListener('input', e => {
+    if (isBusy) { e.target.value = typed; return; }
+    const val = e.target.value.toUpperCase().replace(/[^A-Z'\-]/g, '');
+    if (val.length > typed.length) addLetter(val[val.length - 1]);
+    else if (val.length < typed.length) removeLetter();
+    e.target.value = typed;
+  });
+  hiddenInput.addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && typed.length > 0 && !isBusy) { removeLetter(); e.target.value = typed; }
+  });
+  document.getElementById('game-screen').addEventListener('click', e => {
+    if (!e.target.closest('button')) focusInput();
+  });
+  function focusInput() { const i = document.getElementById('hidden-input'); i.value = typed; i.focus(); }
+
+  /* ── TOAST ── */
+  let toastTimer;
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    clearTimeout(toastTimer);
+    el.textContent = msg; el.className = `show ${type}`;
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  /* ── SCREEN ── */
+  function setScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>
