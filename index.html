@@ -183,8 +183,9 @@
   .audio-label { font-size: 0.72rem; font-weight: 800; color: var(--sky); letter-spacing: 0.05em; text-transform: uppercase; }
 
   #letters-grid {
-    display: flex; flex-wrap: wrap; gap: 0.5rem;
-    justify-content: center; margin-bottom: 1.5rem; min-height: 70px;
+    display: flex; flex-wrap: nowrap; gap: 4px;
+    justify-content: center; margin-bottom: 1rem;
+    width: 100%; overflow: visible;
   }
 
   .letter-cell {
@@ -232,6 +233,22 @@
   .btn-solve:active { transform: translateY(3px); box-shadow: 0 1px 0 #c94444; }
 
   #hidden-input { position: absolute; opacity: 0; pointer-events: none; top: -200px; left: 0; width: 1px; height: 1px; }
+
+  /* ══ KEYBOARD COMPACT MODE ══ */
+  /* When virtual keyboard is open, hide non-essential elements and shrink spacing */
+  .kb-open .stars-bar      { display: none; }
+  .kb-open .audio-zone     { flex-direction: row; gap: 0.75rem; margin-bottom: 0.5rem; justify-content: center; }
+  .kb-open .audio-btn      { width: 52px; height: 52px; font-size: 1.5rem; box-shadow: 0 3px 0 #c97000; }
+  .kb-open .audio-label    { font-size: 0.65rem; }
+  .kb-open .ingame-controls { padding: 0.5rem 0.75rem; gap: 0.35rem; margin-bottom: 0.5rem; }
+  .kb-open .ingame-controls select { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+  .kb-open .ingame-controls .speed-btn { padding: 0.3rem 0.2rem; font-size: 0.65rem; }
+  .kb-open #letters-grid   { margin-bottom: 0.5rem; }
+  .kb-open .action-row     { gap: 0.5rem; margin-bottom: 0; }
+  .kb-open .btn-hint,
+  .kb-open .btn-solve      { padding: 0.65rem 0.5rem; font-size: 0.8rem; box-shadow: 0 2px 0 #7c5de0; }
+  .kb-open .btn-solve      { box-shadow: 0 2px 0 #c94444; }
+  .kb-open .game-topbar    { padding: 0.5rem 0 0.4rem; }
 
   /* ══ FINISH ══ */
   .finish-wrap { text-align: center; padding: 1.5rem 0 0.5rem; }
@@ -600,14 +617,20 @@
       grid.appendChild(cell);
     }
 
+    // Calculate cell size so all letters fit on one line
     const len = currentWord.length;
-    const cellW = len > 12 ? 40 : len > 9 ? 46 : len > 7 ? 50 : 54;
-    const cellH = Math.round(cellW * 1.15);
-    const cellF = Math.round(cellW * 0.6);
+    const gridEl = document.getElementById('letters-grid');
+    const available = gridEl.parentElement.clientWidth - 32; // padding
+    const gap = 4;
+    const maxCellW = Math.min(54, Math.floor((available - gap * (len - 1)) / len));
+    const cellW = Math.max(22, maxCellW); // never smaller than 22px
+    const cellH = Math.round(cellW * 1.2);
+    const cellF = Math.max(10, Math.round(cellW * 0.55));
     document.querySelectorAll('.letter-cell').forEach(c => {
       c.style.width = cellW + 'px';
       c.style.height = cellH + 'px';
       c.style.fontSize = cellF + 'px';
+      c.style.borderRadius = cellW < 35 ? '0.5rem' : '1rem';
     });
 
     focusInput();
@@ -912,6 +935,22 @@
     if (!e.target.closest('button') && !e.target.closest('select')) focusInput();
   });
   function focusInput() { const i = document.getElementById('hidden-input'); i.value = typed; i.focus(); }
+
+  /* ── KEYBOARD DETECTION ── */
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const ratio = window.visualViewport.height / window.screen.height;
+      const kbOpen = ratio < 0.75;
+      document.getElementById('game-screen').classList.toggle('kb-open', kbOpen);
+      if (kbOpen) {
+        // Scroll so letters + buttons are visible
+        setTimeout(() => {
+          const grid = document.getElementById('letters-grid');
+          if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    });
+  }
 
   /* ── TOAST ── */
   let toastTimer;
